@@ -19,14 +19,12 @@ func (vs VarStore) Get(key string) any {
 
 type Evaluator struct {
 	parser.BaseGrammarParserVisitor
-	Vars    VarStore
-	numbers map[string]float64
+	Vars VarStore
 }
 
 func NewEvaluator() *Evaluator {
 	return &Evaluator{
-		Vars:    make(VarStore),
-		numbers: make(map[string]float64),
+		Vars: make(VarStore),
 	}
 }
 
@@ -66,16 +64,24 @@ func (e *Evaluator) VisitTerm(ctx *parser.TermContext) any {
 }
 
 func (e *Evaluator) VisitAdd(ctx *parser.AddContext) any {
-	left := ctx.Mul(0).Accept(e)
+	left := ctx.Mul(0).Accept(e).(AstNode)
 
 	for i := 1; i < len(ctx.AllMul()); i++ {
 		operator := ctx.AddOp(i - 1)
-		right := ctx.Mul(i).Accept(e)
+		right := ctx.Mul(i).Accept(e).(AstNode)
 
 		if operator.ADD() != nil {
-			left = left.(float64) + right.(float64)
+			left = &BinaryExpression{
+				Left:     left,
+				Operator: BinaryOperatorAdd,
+				Right:    right,
+			}
 		} else if operator.SUB() != nil {
-			left = left.(float64) - right.(float64)
+			left = &BinaryExpression{
+				Left:     left,
+				Operator: BinaryOperatorSub,
+				Right:    right,
+			}
 		}
 	}
 
@@ -83,16 +89,24 @@ func (e *Evaluator) VisitAdd(ctx *parser.AddContext) any {
 }
 
 func (e *Evaluator) VisitMul(ctx *parser.MulContext) any {
-	left := ctx.Primary(0).Accept(e)
+	left := ctx.Primary(0).Accept(e).(AstNode)
 
 	for i := 1; i < len(ctx.AllPrimary()); i++ {
 		operator := ctx.MulOp(i - 1)
-		right := ctx.Primary(i).Accept(e)
+		right := ctx.Primary(i).Accept(e).(AstNode)
 
 		if operator.MUL() != nil {
-			left = left.(float64) * right.(float64)
+			left = &BinaryExpression{
+				Left:     left,
+				Operator: BinaryOperatorMul,
+				Right:    right,
+			}
 		} else if operator.DIV() != nil {
-			left = left.(float64) / right.(float64)
+			left = &BinaryExpression{
+				Left:     left,
+				Operator: BinaryOperatorDiv,
+				Right:    right,
+			}
 		}
 	}
 
@@ -101,20 +115,14 @@ func (e *Evaluator) VisitMul(ctx *parser.MulContext) any {
 
 func (e *Evaluator) VisitPrimary(ctx *parser.PrimaryContext) any {
 	if ctx.ID() != nil {
-		return e.Vars.Get(ctx.ID().GetText())
+		return &Identifier{Name: ctx.ID().GetText()}
 	} else if ctx.NUMBER() != nil {
-		numberText := ctx.NUMBER().GetText()
-		if value, ok := e.numbers[numberText]; ok {
-			return value
-		}
-
 		value, err := strconv.ParseFloat(ctx.NUMBER().GetText(), 64)
 		if err != nil {
 			panic(err)
 		}
 
-		e.numbers[numberText] = value
-		return value
+		return &NumberConstant{Value: value}
 	} else if ctx.LPAREN() != nil {
 		return ctx.Term().Accept(e)
 	}

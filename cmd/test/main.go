@@ -15,31 +15,45 @@ func main() {
 	evaluator.Vars.Set("x", 1.0)
 
 	{
-		lexer := grammar.NewLexer(content)
-		parser := grammar.NewParser(lexer)
+		fmt.Println(bench.Run("Handwritten", func(b *bench.B) {
+			var tree grammar.AstNode
 
-		tree, err := parser.ParseTerm()
-		if err != nil {
-			panic(err)
-		}
+			b.Run("parsing", func(b *bench.B) {
+				lexer := grammar.NewLexer(content)
+				parser := grammar.NewParser(lexer)
 
-		fmt.Println(bench.Run("Handwritten", func() {
-			evaluator.Eval(tree)
+				var err error
+				tree, err = parser.ParseTerm()
+				if err != nil {
+					panic(err)
+				}
+			})
+
+			b.Run("evaluation", func(b *bench.B) {
+				evaluator.Eval(tree)
+			})
 		}, 10000))
 	}
 
-	fmt.Println("")
+	fmt.Println()
 
 	{
-		input := antlr.NewInputStream(string(content))
-		lexer := parser.NewGrammarLexer(input)
-		tokenStream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-		p := parser.NewGrammarParser(tokenStream)
+		fmt.Println(bench.Run("ANTLR4", func(b *bench.B) {
+			var ast grammar.AstNode
 
-		tree := p.Term()
+			b.Run("parsing", func(b *bench.B) {
+				input := antlr.NewInputStream(string(content))
+				lexer := parser.NewGrammarLexer(input)
+				tokenStream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
+				p := parser.NewGrammarParser(tokenStream)
 
-		fmt.Println(bench.Run("ANTLR4", func() {
-			evaluator.Visit(tree)
+				tree := p.Term()
+				ast = evaluator.Visit(tree).(grammar.AstNode)
+			})
+
+			b.Run("evaluation", func(b *bench.B) {
+				evaluator.Eval(ast)
+			})
 		}, 10000))
 	}
 }

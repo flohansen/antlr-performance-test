@@ -13,13 +13,54 @@ type BenchResult struct {
 	Avg        time.Duration
 }
 
-func (br BenchResult) String() string {
-	return fmt.Sprintf("Benchmark Results '%s' (%d iterations):\n    min: %s, max: %s, avg: %s",
-		br.Name, br.Iterations, br.Min, br.Max, br.Avg)
+type B struct {
+	result  *BenchResult
+	results map[string]*BenchResult
 }
 
-func Run(name string, f func(), n int) BenchResult {
-	result := BenchResult{
+func (b B) String() string {
+	str := fmt.Sprintf("Benchmark Result '%s':\n", b.result.Name)
+	str += fmt.Sprintf("  (total): %s:", b.result)
+	for name, result := range b.results {
+		str += fmt.Sprintf("\n  (%s): %s", name, result)
+	}
+
+	return str
+}
+
+func (b *B) Run(name string, f func(*B)) {
+	if _, ok := b.results[name]; !ok {
+		b.results[name] = &BenchResult{
+			Name:       name,
+			Iterations: 0,
+			Min:        time.Duration(1<<63 - 1),
+			Max:        time.Duration(0),
+			Avg:        time.Duration(0),
+		}
+	}
+
+	t := time.Now()
+	f(b)
+	d := time.Since(t)
+
+	if d < b.results[name].Min {
+		b.results[name].Min = d
+	}
+	if d > b.results[name].Max {
+		b.results[name].Max = d
+	}
+
+	b.results[name].Iterations++
+	b.results[name].Avg += d
+}
+
+func (br BenchResult) String() string {
+	return fmt.Sprintf("min: %s, max: %s, avg: %s",
+		br.Min, br.Max, br.Avg)
+}
+
+func Run(name string, f func(*B), n int) *B {
+	result := &BenchResult{
 		Name:       name,
 		Iterations: n,
 		Min:        time.Duration(1<<63 - 1),
@@ -27,9 +68,14 @@ func Run(name string, f func(), n int) BenchResult {
 		Avg:        time.Duration(0),
 	}
 
+	b := &B{
+		result:  result,
+		results: make(map[string]*BenchResult),
+	}
+
 	for range n {
 		start := time.Now()
-		f()
+		f(b)
 		duration := time.Since(start)
 
 		if duration < result.Min {
@@ -43,5 +89,9 @@ func Run(name string, f func(), n int) BenchResult {
 	}
 
 	result.Avg /= time.Duration(n)
-	return result
+	for _, result := range b.results {
+		result.Avg /= time.Duration(result.Iterations)
+	}
+
+	return b
 }

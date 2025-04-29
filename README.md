@@ -21,11 +21,15 @@ between the two approaches.
 ## Test Results
 ### Golang
 ```
-Benchmark Results 'Handwritten' (10000 iterations):
-    min: 275ns, max: 7.974µs, avg: 362ns
+Benchmark Result 'Handwritten':
+  (total): min: 1.93µs, max: 192.278µs, avg: 2.245µs:
+  (parsing): min: 1.365µs, max: 191.271µs, avg: 1.637µs
+  (evaluation): min: 315ns, max: 114.191µs, avg: 377ns
 
-Benchmark Results 'ANTLR4' (10000 iterations):
-    min: 4.786µs, max: 614.346µs, avg: 6.233µs
+Benchmark Result 'ANTLR4':
+  (total): min: 25.758µs, max: 501.241µs, avg: 33.168µs:
+  (parsing): min: 25.136µs, max: 498.293µs, avg: 32.452µs
+  (evaluation): min: 324ns, max: 18.754µs, avg: 425ns
 ```
 
 ## Test Setup
@@ -103,18 +107,22 @@ To run the test you simply just have to run
 ## Conclusion
 It is evident that the handwritten approach significantly outperforms the
 generated one in terms of speed. In this relatively simple experiment, using
-ANTLR4 to generate the lexer and parser results in evaluations that are
+ANTLR4 to generate the lexer and parser results in parsing which is
 approximately 20 times slower, which is quite substantial. This performance
 difference is particularly critical when speed is a non-functional requirement.
 The reason for this performance difference may stem from the abstraction levels
 employed by ANTLR4, which are designed to support robust code generation across
-a wide range of use cases.
+a wide range of use cases. The evaluation speed is approximately the same.
 
 On the other hand, while the handwritten implementation offers better
 performance, the development time required to create a lexer and parser from
 scratch can be considerably higher. This challenge becomes even more pronounced
 as the complexity of the language increases, making the manual approach less
 feasible for more intricate projects.
+
+For applications where the parsing speed does not really matter, using ANTLR4
+seems to be a good alternative due to the better maintainability and
+development speed.
 
 ## Contributing
 
